@@ -26,6 +26,9 @@ A comprehensive chatbot system built with Streamlit, LangChain, and Groq that ca
 ## 📁 Project Structure
 
 ```
+├── logs
+├── uploaded_docs
+├── vectors_store      
 ├── app.py                    # Main Streamlit application
 ├── config.py                # Configuration settings
 ├── document_processor.py     # Document loading and vector store management
