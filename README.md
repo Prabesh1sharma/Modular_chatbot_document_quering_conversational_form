@@ -55,7 +55,6 @@ A comprehensive chatbot system built with Streamlit, LangChain, and Groq that ca
      ```bash
      GROQ_API_KEY=your-api-key-here
      ```
-   - Or enter it directly in the app's sidebar when you run it
 
 4. **Use docker to run Weviate:**
    - Start Weaviate locally:
