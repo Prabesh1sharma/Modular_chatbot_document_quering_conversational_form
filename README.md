@@ -7,7 +7,7 @@ A comprehensive chatbot system built with Streamlit, LangChain, and Groq that ca
 ### Document Q&A
 - **Multi-format Support**: Upload PDF, TXT, and DOCX files
 - **Intelligent Chunking**: Documents are split into optimal chunks for better retrieval
-- **Vector Search**: Uses FAISS for efficient similarity search
+- **Vector Search**: Uses Weviate for efficient similarity search
 - **Conversational Memory**: Maintains context across conversations
 - **Source Citations**: Shows relevant document sections for answers
 
@@ -57,7 +57,14 @@ A comprehensive chatbot system built with Streamlit, LangChain, and Groq that ca
      ```
    - Or enter it directly in the app's sidebar when you run it
 
-4. **Run the application:**
+4. **Set up your Groq API key:**
+   - Start Weaviate locally:
+   - Use docker for this 
+     ```bash
+     docker run -p 8080:8080 -p 50051:50051 semitechnologies/weaviate:latest
+     ```
+
+5. **Run the application:**
    ```bash
    streamlit run app.py
    ```
@@ -86,6 +93,10 @@ Edit `config.py` to customize:
    - Type questions about your documents in the chat
    - Get answers with relevant source excerpts
    - Maintain conversation context
+
+3. **Switch back to appointment booking to document QA**
+   - Clear chat as it has history saving it can answer based on previous chat
+   - for better performance
 
 ### Appointment Booking
 
@@ -164,8 +175,10 @@ The system includes several specialized tools:
    - Ensure files are not corrupted
    - Check file size limitations
 
-3. **Faiss Issue**
-   - Check if the faiss is installed correctly
+3. **Weviate Issue**
+   - Check you weviate docker conatiner is running or not
+
+
 ### Performance Tips
 
 - **Document Size**: Keep documents under 10MB for best performance

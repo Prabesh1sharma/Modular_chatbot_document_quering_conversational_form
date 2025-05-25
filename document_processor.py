@@ -1,5 +1,7 @@
 import os
-from langchain_community.vectorstores import FAISS 
+import weaviate
+from weaviate.auth import AuthApiKey
+from langchain_community.vectorstores import Weaviate  # Changed from FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -30,6 +32,12 @@ class DocumentProcessor:
             chunk_overlap=CONFIG["CHUNK_OVERLAP"]
         )
         logger.debug(f"Initialized text splitter with chunk size {CONFIG['CHUNK_SIZE']}, overlap {CONFIG['CHUNK_OVERLAP']}")
+        
+        # Initialize Weaviate client using v3 style for LangChain compatibility
+        self.weaviate_client = weaviate.Client(
+            url="http://localhost:8080"
+        )
+        self.index_name = "DocumentIndex"
         self.vector_store = None
         self.load_vector_store()
         
@@ -81,10 +89,10 @@ class DocumentProcessor:
         """Clear existing vector store data"""
         logger.info("Clearing existing vector store data")
         try:
-            # Remove the vector store directory if it exists
-            if os.path.exists(CONFIG["VECTOR_STORE_PATH"]):
-                shutil.rmtree(CONFIG["VECTOR_STORE_PATH"])
-                logger.info(f"Removed existing vector store directory: {CONFIG['VECTOR_STORE_PATH']}")
+            # Delete the collection if it exists using v3 API
+            if self.weaviate_client.schema.exists(self.index_name):
+                self.weaviate_client.schema.delete_class(self.index_name)
+                logger.info(f"Deleted existing Weaviate collection: {self.index_name}")
             
             # Reset the vector store instance
             self.vector_store = None
@@ -95,7 +103,7 @@ class DocumentProcessor:
             print(f"DEBUG: Error clearing vector store: {str(e)}")
             st.error(f"Error clearing vector store: {str(e)}")
     
-    def create_vector_store(self, documents: List[Document]) -> FAISS:
+    def create_vector_store(self, documents: List[Document]) -> Weaviate:  # Changed return type
         """Create new vector store from documents (replaces existing one)"""
         logger.info("Creating new vector store (replacing existing)")
         if not documents:
@@ -110,7 +118,13 @@ class DocumentProcessor:
         try:
             # Always create a new vector store (no merging)
             logger.debug("Creating brand new vector store")
-            self.vector_store = FAISS.from_documents(chunks, self.embeddings)
+            self.vector_store = Weaviate.from_documents(
+                documents=chunks,
+                embedding=self.embeddings,
+                client=self.weaviate_client,
+                index_name=self.index_name,
+                text_key="text"
+            )
             logger.info(f"Created new vector store with {len(chunks)} chunks")
             
             self.save_vector_store()
@@ -125,12 +139,10 @@ class DocumentProcessor:
     def save_vector_store(self):
         """Save vector store to disk"""
         if self.vector_store:
-            logger.info(f"Saving vector store to {CONFIG['VECTOR_STORE_PATH']}")
+            logger.info(f"Saving vector store to Weaviate")
             try:
-                # Ensure the directory exists
-                os.makedirs(os.path.dirname(CONFIG["VECTOR_STORE_PATH"]), exist_ok=True)
-                self.vector_store.save_local(CONFIG["VECTOR_STORE_PATH"])
-                logger.info("Vector store saved successfully")
+                # Weaviate automatically persists data, no explicit save needed
+                logger.info("Vector store saved successfully (Weaviate auto-persists)")
                 st.success("Vector store created and saved successfully!")
             except Exception as e:
                 logger.error(f"Error saving vector store: {str(e)}", exc_info=True)
@@ -140,15 +152,19 @@ class DocumentProcessor:
     def load_vector_store(self):
         """Load vector store from disk"""
         try:
-            logger.info(f"Loading vector store from {CONFIG['VECTOR_STORE_PATH']}")
-            if os.path.exists(CONFIG["VECTOR_STORE_PATH"]):
-                self.vector_store = FAISS.load_local(
-                    CONFIG["VECTOR_STORE_PATH"], 
-                    self.embeddings,
-                    allow_dangerous_deserialization=True
+            logger.info(f"Loading vector store from Weaviate")
+            if self.weaviate_client.schema.exists(self.index_name):
+                self.vector_store = Weaviate(
+                    client=self.weaviate_client,
+                    index_name=self.index_name,
+                    text_key="text",
+                    embedding=self.embeddings
                 )
                 logger.info("Vector store loaded successfully")
                 st.session_state.vector_store_loaded = True
+            else:
+                logger.warning("No existing Weaviate collection found")
+                self.vector_store = None
         except Exception as e:
             logger.error(f"Error loading vector store: {str(e)}", exc_info=True)
             print(f"DEBUG: Error occur in load_vector_store {str(e)} ")
@@ -172,7 +188,7 @@ class DocumentProcessor:
             st.error(f"Error searching documents: {str(e)}")
             return []
     
-    def get_vector_store(self) -> Optional[FAISS]:
+    def get_vector_store(self) -> Optional[Weaviate]:  # Changed return type
         """Get the current vector store"""
         logger.debug(f"Vector store requested. Available: {self.vector_store is not None}")
         return self.vector_store
