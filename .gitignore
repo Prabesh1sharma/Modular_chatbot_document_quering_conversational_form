@@ -1,0 +1,7 @@
+.env
+venv/
+*.log
+uploaded_docs/
+vector_store/
+test.py
+__pycache__/
